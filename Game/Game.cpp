@@ -1,194 +1,372 @@
 ﻿#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+#include "windows.h"
 
 
 using namespace std;
 
-#define X 8
-#define Y 8
- 
+#define X 10
+#define Y 10
+
+int max_x_coord, max_y_coord;
+
+int reversiBoard[Y][X];
+int tempBoard[Y][X];
+int chips[3]; //0-black 1-white 3-all
+
+void copy_board() {
+	for (int i = 1; i < 9; i++){
+		for (int j = 1; j < 9; j++){
+			tempBoard[i][j] = reversiBoard[i][j];
+		}
+	}
+}
 
 
-////////////////////////////////////////////////////////////////////////////////
-// Clears and intializes the board at the beginning of the game
+void intializeBoard(){
 
-void intializeBoard(int reversiBoard[Y][X])
-{
-	//for (int y = 0; y < 8; ++y)
-	//{
-	//	for (int x = 0; x < 8; ++x)
-	//	{
-	//		switch (x)
-	//		{
-	//			// Column 1
-	//		case 0: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Column 2
-	//		case 1: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Column 3
-	//		case 2: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Column 4
-	//		case 3: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Column 5
-	//		case 4: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Column 6
-	//		case 5: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Column 7
-	//		case 6: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Column 8
-	//		case 7: reversiBoard[y][x] = ' ';
-	//			break;
-	//			// Error
-	//		default: cout << endl << "Error! intializeBoard()" << endl;
-	//			break;
-	//		}
-	//	}
-	//}
+	for (int i = 1; i < 9; i++) {
+		for (int j = 1; j < 9; j++) {
+			tempBoard[i][j] = 0;
+			reversiBoard[i][j] = 0;
+		}
+	}
 
-	// Sets the starting positions
-	reversiBoard[3][3] = 176;
-	reversiBoard[3][4] = 219;
-	reversiBoard[4][3] = 219;
+	//0-black 1-white 3-all
+	chips[0] = 2;
+	chips[1] = 2;
+	chips[2] = 60;
+
 	reversiBoard[4][4] = 176;
+	reversiBoard[4][5] = 219;
+	reversiBoard[5][4] = 219;
+	reversiBoard[5][5] = 176;
 
+	copy_board();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Gets each player's move
 
-void play(int& xCoord, int& yCoord, int playersTurn)
-{
-	// Black = 1; White = 2
-	switch (playersTurn){
-	case 1: cin.ignore(99, '\n');
-		cout << "[Black] Enter a coordinate [X Y]: ";
-		cin >> xCoord >> yCoord;
+int calc_count_enemies(int i, int j, int i_plus, int j_plus, int enem, int team, bool reprint) {
+	int enemy_count = 0;
+	bool enemy = false, teammate = false;
+
+	for (; (j < 9) && (i < 9) && (i > 0) && (j > 0); j += j_plus, i += i_plus) {
+		if (tempBoard[i][j] == enem) {
+			enemy = true;
+			enemy_count++;
+		}
+		else if (tempBoard[i][j] == team) {
+			if (reprint) {
+
+				if (enem == 219) {
+					chips[0] += enemy_count;
+					chips[1] -= enemy_count;
+				}
+				else {
+					chips[1] += enemy_count;
+					chips[0] -= enemy_count;
+				}
+				for (int iter = enemy_count; iter > 0; iter--) {
+					i -= i_plus;
+					j -= j_plus;
+					reversiBoard[i][j] = team;
+				}
+
+			}
+			teammate = true;
+			break;
+		}
+		else {
+			break;
+		}
+	}
+	if((enemy)&&(teammate))
+		return enemy_count;
+	else
+		return 0;
+}
+
+
+int calculate_max(int io, int jo, int player) {
+	
+	int enemy_number = 0;
+	int teammate_number = 0;
+
+	vector <int> count_enemies;
+	switch (player) {
+	case 0:
+		enemy_number = 219;
+		teammate_number = 176;
 		break;
-
-	case 2: cin.ignore(99, '\n');
-		cout << "[White] Enter a coordinate [X Y]: ";
-		cin >> xCoord >> yCoord;
-		break;
-
-	default: cout << "Error! int play()" << endl;
-		cout << "Please press enter to continue...";
-		cin.ignore(99, '\n');
-		getchar();
+	default:
+		enemy_number = 176;
+		teammate_number = 219;
 		break;
 	}
 
+	///horizontal_right
+	count_enemies.push_back(calc_count_enemies(io, jo+1, 0, 1, enemy_number, teammate_number, false));
+	
+	///vertical_down
+	count_enemies.push_back(calc_count_enemies(io+1, jo, 1, 0, enemy_number, teammate_number, false));
+
+	///horizontal_left
+	count_enemies.push_back(calc_count_enemies(io, jo -1, 0, -1, enemy_number, teammate_number, false));
+
+	///vertical_up
+	count_enemies.push_back(calc_count_enemies(io-1, jo, -1, 0, enemy_number, teammate_number, false));
+
+	///diag_up_right
+	count_enemies.push_back(calc_count_enemies(io-1, jo +1, -1, 1, enemy_number, teammate_number, false));
+
+	///diag_down_right
+	count_enemies.push_back(calc_count_enemies(io+1, jo +1, 1, 1, enemy_number, teammate_number, false));
+
+	///diag_down_left
+	count_enemies.push_back(calc_count_enemies(io+1, jo -1, 1, -1, enemy_number, teammate_number, false));
+
+	///diag_up_left
+	count_enemies.push_back(calc_count_enemies(io-1, jo -1, -1, -1, enemy_number, teammate_number, false));
+
+	return std::accumulate(count_enemies.begin(), count_enemies.end(), 0);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Checks if the player's move is valid; 0 = Valid, 1 = Not Valid
 
-int badMove(char reversiBoard[][8], int xCoord, int yCoord, int playersTurn)
-{
-	// Coordinate out of bounce or not numeric
-	if (xCoord < 1 || xCoord > 8 || yCoord < 1 || yCoord > 8 || !cin.good())
-	{
-		cout << "Bad Move, out of bounce.";
-		cin.ignore(99, '\n');
-		getchar();
-		return 1;
+bool check_around(int i, int j, int player) {
 
-	}
-
-	if (reversiBoard[yCoord - 1][xCoord - 1] != ' ')
-	{
-		cout << "Bad Move, Don't Leave Blank.";
-		cin.ignore(99, '\n');
-		getchar();
-		return 1;
-	}
-
-	// Good Move
-	return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Checks for player pieces to flip and updates the board; swaps turns
-
-void updateBoard(char reversiBoard[][8], int xCoord, int yCoord, int& playersTurn)
-{
-	switch (playersTurn)
-	{
-	case 1: reversiBoard[yCoord - 1][xCoord - 1] = 'X';
-		playersTurn = 2;
+	switch (player){
+	case 0:
+		player = 219;
 		break;
-
-	case 2: reversiBoard[yCoord - 1][xCoord - 1] = 'O';
-		playersTurn = 1;
+	default:
+		player = 176;
 		break;
 	}
 
+	if ((tempBoard[i - 1][j] == player) || (tempBoard[i][j - 1] == player)
+		|| (tempBoard[i + 1][j] == player) || (tempBoard[i][j + 1] == player)) {
+		return true;
+	}
+	return false;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Displays the board
 
-void displayBoard(int reversiBoard[X][Y])
+int find_max(int player) {
+	vector <int> all_max;
+	int max_for_computer = -1;
+	for (int i = 1; i < 9; i++){
+		for (int j = 1; j < 9; j++){
+			if ((check_around(i, j, player))&&(tempBoard[i][j]!=219)&&(tempBoard[i][j]!=176)){
+				int max_chip = calculate_max(i, j, player);
+
+
+				all_max.push_back(max_chip);
+				if (max_chip) {
+					if (max_chip > max_for_computer) {
+						max_x_coord = j;
+						max_y_coord = i;
+					}
+					tempBoard[i][j] = max_chip;
+				}
+			}
+		}
+	}
+	return *max_element(all_max.begin(), all_max.end());;
+}
+
+
+void displayBoard(int board[X][Y])
 {
 	system("CLS");
-
-	for (int i = 0; i < 8; i++) {
+	cout << "\n\n     ";
+	for (int i = 1; i < 9; i++) {
 		cout << "   " << i;
 	}
-	cout << "   (X)" << endl;
+	cout << endl;
 
-	for (int i = 0; i < Y; i++){
-		cout << ' ';
+	for (int i = 1; i < Y - 1; i++) {
+		cout << "      ";
 		for (int i = 0; i < 8; i++) {
 			cout << "+---";
 		}
-		cout << '+' << endl << i;
+		cout << '+' << endl << "    " << i << ' ';
 
-		for (int j = 0; j < X; j++){
-			switch (reversiBoard[i][j])
+		for (int j = 1; j < X - 1; j++) {
+			switch (board[i][j])
 			{
 			case 176:
-				cout << "| " << (char)reversiBoard[i][j] << ' ';
+				cout << "| " << (char)board[i][j] << ' ';
 				break;
 			case 219:
-				cout << "| " << (char)reversiBoard[i][j] << ' ';
+				cout << "| " << (char)board[i][j] << ' ';
+				break;
+			case 0:
+				cout << "|   ";
 				break;
 			default:
-				cout << "|   ";
+				cout << "| " << (char)15 << ' ';
+				//cout.width(3);
+				//cout << board[i][j];
 				break;
 			}
 		}
 		cout << "|" << endl;
 	}
 
-	cout << " ";
+	cout << "      ";
 	for (int i = 0; i < 8; i++) {
 		cout << "+---";
 	}
-	cout << "+\n(Y)\n\n";
-	//cout << "    A   B   C   D   E   F   G   H   " << endl << endl;
+	cout << "+\n\nBlack chips: " << chips[0];
+	cout << "\nWhite chips: " << chips[1];
+	cout << "\nChips left: " << chips[2] << "\n\n";
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Returns who won 1 = Black; 2 = White; 3 = Tie
 
-int gameOver(){
-	return -1;
+void reprint(int x, int y, int enemy_number, int teammate_number) {
+
+	///horizontal_right
+	calc_count_enemies(x, y + 1, 0, 1, enemy_number, teammate_number, true);
+
+	///vertical_down
+	calc_count_enemies(x + 1, y, 1, 0, enemy_number, teammate_number, true);
+
+	///horizontal_left
+	calc_count_enemies(x, y - 1, 0, -1, enemy_number, teammate_number, true);
+
+	///vertical_up
+	calc_count_enemies(x - 1, y, -1, 0, enemy_number, teammate_number, true);
+
+	///diag_up_right
+	calc_count_enemies(x - 1, y + 1, -1, 1, enemy_number, teammate_number, true);
+
+	///diag_down_right
+	calc_count_enemies(x + 1, y + 1, 1, 1, enemy_number, teammate_number, true);
+
+	///diag_down_left
+	calc_count_enemies(x + 1, y - 1, 1, -1, enemy_number, teammate_number, true);
+
+	///diag_up_left
+	calc_count_enemies(x - 1, y - 1, -1, -1, enemy_number, teammate_number, true);
+
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Directions on how to play the game
+void play(int versus_comp)
+{	
+	//vs_comp 1 if versus comp
+	// Black = 0; White = 1
+	int player = 0;
+	int max = 0; 
+	
+	while (1) {
+		if (!chips[2]) {
+			break;
+		}
+		
+		max = find_max(player);
+		if (!max) {
+			if (!player)
+				player = 1;
+			else
+				player = 0;
+
+			continue;
+		}
+
+		
+		int x, y;
+		switch (player) {
+		case 0:
+			displayBoard(tempBoard);
+			cout << "[Black](" << (char)176 << ") Enter a coordinate [X Y]: ";
+			while (1) {
+				cin >> x >> y;
+				if ((y < 9) && (x < 9) && (x > 0) && (y > 0) && (tempBoard[y][x] != 219) && (tempBoard[y][x] != 176) && (tempBoard[y][x] != 0)) {
+					reversiBoard[y][x] = 176;
+					reprint(y, x, 219, 176);
+					chips[2]--;
+					chips[0]++;
+					break;
+				}
+				else {
+					displayBoard(tempBoard);
+					cout << "[Black](" << (char)176 << ") Enter a coordinate [X Y]: ";
+					continue;
+				}
+			}
+			copy_board();
+			break;
+
+		case 1:
+
+			if (!versus_comp) {	//versus human
+				displayBoard(tempBoard);
+				cout << "[White](" << (char)219 << ") Enter a coordinate [X Y]: ";
+				while (1) {
+					cin >> x >> y;
+					if ((y < 9) && (x < 9) && (x > 0) && (y > 0) && (tempBoard[y][x] != 219) && (tempBoard[y][x] != 176) && (tempBoard[y][x] != 0)) {
+						reversiBoard[y][x] = 219;
+						reprint(y, x, 176, 219);
+						chips[2]--;
+						chips[1]++;
+						break;
+					}
+					else {
+						displayBoard(tempBoard);
+						cout << "[White](" << (char)219 << ") Enter a coordinate [X Y]: ";
+						continue;
+					}
+				}
+			}
+			else { //versus computer
+				displayBoard(reversiBoard);
+				Sleep(500);
+				reversiBoard[max_y_coord][max_x_coord] = 219;
+
+				displayBoard(reversiBoard);
+				Sleep(500);
+				reprint(max_y_coord, max_x_coord, 176, 219);
+				chips[2]--;
+				chips[1]++;
+			}
+			copy_board();
+			break;
+		}
+		if (!player)
+			player = 1;
+		else
+			player = 0;
+	}
+
+	return;
+}
+
+
+void winner() {
+	displayBoard(reversiBoard);
+
+	if (chips[0] > chips[1]) {
+		cout << "Black's win!\n";
+	}
+	else if (chips[0] < chips[1]) {
+		cout << "White's win!\n";
+	}
+	else cout << "Draw!\n";
+	getchar();
+	return;
+}
+
 
 void howToPlay()
 {
 	system("CLS");
 
-	cout << "How to play Reversi" << endl;
-	cout << "Directions..." << endl;
+	cout << "How to play Reversi\n" << endl;
+	cout << "Players battle to finish the game with more of their own pieces on the board than their opponent.\n"
+		 << "The game is classed as finished when " 
+		 << "there are no spaces left on the board \nor there are no more possible legal moves for either competitor." << endl;
 
 	cout << "Please press enter to continue...";
 	cin.ignore(99, '\n');
@@ -197,80 +375,51 @@ void howToPlay()
 	system("CLS");
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Main Menu
+
 void print_menu() {
 	system("CLS");
 	cout << "Reversi" << endl << endl;
 	cout << "Please choose an option" << endl;
-	cout << "1 - Play Game!" << endl;
-	cout << "2 - How to Play?" << endl;
+	cout << "1 - Play Game versus the human!" << endl;
+	cout << "2 - Play Game versus the computer!" << endl;
+	cout << "3 - How to Play?" << endl;
 	cout << "0 - Exit." << endl;
 	cout << ": ";
 }
 
+
 int main()
 {
-	// Holds menu choice
+
 	int choice = 0;
 
-	// Holds winner of game
-	int intGameOver = 0;
+	do{
 
-	// Coordinates user selects
-	int xCoord;
-	int yCoord;
+		int choice = 2;
+		print_menu();
+		cin >> choice;
 
-	// Black = 1; White = 2 - Black always starts
-	int playersTurn = 1;
+		switch (choice){
+		case 1:
 
-	// Holds individual squares for the Reversi board
-	int reversiBoard[Y][X] = { 0 };
-	
-	//cout << (char)176; //black
-	//cout << (char)219; white
-
-	do
-	{
-		cin.clear();
-		int choice = 1;
-		//print_menu();
-		//cin >> choice;
-
-		switch (choice)
-		{
-			// Play Game
-		case 1: 
-
-			intializeBoard(reversiBoard);
+			intializeBoard();
 			displayBoard(reversiBoard);
-			play(xCoord, yCoord, 1);
+			play(0);
+			winner();
 			getchar();
-			//do
-			//{
-			//	// Displays the board
-			//	displayBoard(reversiBoard);
-
-			//	// Gets the coordinate of the player's move
-			//	
-
-			//	// Checks if the move is valid; Start turn over if true
-			//	if (badMove(reversiBoard, xCoord, yCoord, playersTurn) == 1)
-			//	{
-			//		continue;
-			//	}
-
-			//	// Checks for / Flips appropriate disks
-			//	updateBoard(reversiBoard, xCoord, yCoord, playersTurn);
-
-			//	// Checks to see if the game is over and who won
-			//	intGameOver = gameOver();
-
-			//} while (1);
 			break;
 
-			// How to Play        
-		case 2: howToPlay();
+		case 2:
+
+			intializeBoard();
+			displayBoard(reversiBoard);
+			play(1);
+			winner();
+			getchar();
+			break;
+
+
+		case 3: howToPlay();
 			break;
 
 			// Exit
@@ -282,34 +431,12 @@ int main()
 			break;
 		}
 
-		//// Displays winner's message if the user didn't exit
-		//if (choice != 0)
-		//{
-		//	switch (intGameOver)
-		//	{
-		//	case 1: cout << "Black is the winner!" << endl;
-		//		break;
-		//	case 2: cout << "White is the winner!" << endl;
-		//		break;
-		//	case 3: cout << "It is a draw!" << endl;
-		//		break;
-		//	default: cout << "Error! int main() gameOver" << endl;
-		//		cout << "intGameOver = " << intGameOver << endl;
-		//		break;
-		//	}
-		//}
-
-		// Exit
-		if (choice == 0 || (intGameOver >= 1 && intGameOver <= 3))
+		if (choice == 0)
 		{
 			break;
 		}
 
 	} while (1);
-
-	cout << "Please press enter to continue...";
-	cin.ignore(99, '\n');
-	getchar();
 
 	return 0;
 }
